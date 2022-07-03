@@ -1,6 +1,6 @@
 [package]
 name = "kplc-outage-parser"
-version = "0.1.0"
+version = "0.1.0-alpha"
 edition = "2021"
 authors = ["Brian Orwe <brian.orwe@gmail.com>"]
 rust-version = "1.61.0"
