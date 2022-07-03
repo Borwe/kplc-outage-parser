@@ -2,9 +2,9 @@
 name = "kplc-outage-parser"
 version = "0.1.0"
 edition = "2021"
-author = ["Brian Orwe <brian.orwe@gmail.com>"]
-rust-versio = "1.61.0"
-decription = "A library to give output of latest data from kplc outages pdf @ https://kplc.co.ke/category/view/50/planned-power-interruptions"
+authors = ["Brian Orwe <brian.orwe@gmail.com>"]
+rust-version = "1.61.0"
+description  = "A library to give output of latest data from kplc outages pdf @ https://kplc.co.ke/category/view/50/planned-power-interruptions"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
