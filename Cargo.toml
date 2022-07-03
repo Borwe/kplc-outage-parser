@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["Brian Orwe <brian.orwe@gmail.com>"]
 rust-version = "1.61.0"
 description  = "A library to give output of latest data from kplc outages pdf @ https://kplc.co.ke/category/view/50/planned-power-interruptions"
+repository = "https://github.com/Borwe/kplc-outage-parser"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
