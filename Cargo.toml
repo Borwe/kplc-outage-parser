@@ -3,7 +3,6 @@ name = "kplc-outage-parser"
 version = "0.1.0-alpha"
 edition = "2021"
 authors = ["Brian Orwe <brian.orwe@gmail.com>"]
-rust-version = "1.61.0"
 description  = "A library to give output of latest data from kplc outages pdf @ https://kplc.co.ke/category/view/50/planned-power-interruptions"
 repository = "https://github.com/Borwe/kplc-outage-parser"
 license = "MIT"
@@ -13,3 +12,8 @@ license = "MIT"
 [dependencies]
 reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+async-trait = "0.1.56"
+
+[dev-dependencies]
+dotenv = "0.15.0"
