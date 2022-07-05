@@ -1,9 +1,11 @@
 use core::time;
 
+use crate::data;
 use crate::api::API;
 use reqwest::{Client,header::HeaderMap, header::HeaderValue, Method};
 use serde::{Serialize,Deserialize};
 use async_trait::async_trait;
+use regex::Regex;
 
 const FREE_CONVERT_URL: &str = "https://api.freeconvert.com/v1/process";
 
@@ -61,6 +63,38 @@ impl FreeConvertAPI{
 
     pub fn set_pdf_url(&mut self, pdf_url: String){
         self.pdf_url = pdf_url;
+    }
+
+    /// Can only parse Date object from String with the format:
+    /// <br>
+    ///DATE: Sunday 19.06.2022                    TIME: 9.00 A.M. ­ 5.00 P.M.<br>
+    ///
+    ///or matches the regex (\w+\.*\w+)
+    fn parse_date(&self,date_line: &str)-> Result<data::Date,&dyn std::error::Error>{
+        lazy_static::lazy_static!(
+            static ref DATE_REGEX: Regex = {
+                Regex::new(r"(\w+\.*\w+)").unwrap()
+            };
+        );
+        let capture = DATE_REGEX
+            .find_iter(date_line).map(|f| f.as_str()).collect::<Vec<&str>>();
+        println!("VALS: {:#?}",capture);
+        let mut from = capture[5].to_string();
+        from.push_str(" ");
+        from.push_str(&capture[6]);
+        let mut to = capture[7].to_string();
+        to.push_str(" ");
+        to.push_str(&capture[8]);
+        Ok(data::Date{
+            day: capture[1].to_string(),
+            day_date: capture[2].split(".").collect::<Vec<&str>>().get(0).unwrap().parse::<usize>().unwrap(),
+            month_date: capture[2].split(".").collect::<Vec<&str>>().get(1).unwrap().parse::<usize>().unwrap(),
+            year: capture[3].parse().unwrap(),
+            interval: data::Interval { 
+                from,
+                to 
+            }
+        })
     }
 }
 
@@ -147,22 +181,40 @@ impl API for FreeConvertAPI{
 mod tests {
     use super::*;
     use dotenv::dotenv;
+    use tokio::join;
 
-    #[tokio::test]
-    async fn test_geting_txt_from_pdf() {
+    fn setup_free_convert(url: &str)-> FreeConvertAPI{
         dotenv().ok();
         let key = std::env::var("TROLL_KEY").unwrap();
-        //url for 16/06/2022
-        let pdf_url1 = String::from("https://www.kplc.co.ke/img/full/Interruptions%20-%2016.06.2022.pdf");
-        let pdf_url2 = String::from("https://www.kplc.co.ke/img/full/Interruptions%20-%2023.06.2022.pdf");
+        FreeConvertAPI::new(key, String::from(url))
+    }
 
-        let free_convert = FreeConvertAPI::new(key.clone(), pdf_url1);
-        let free_convert2 = FreeConvertAPI::new(key.clone(), pdf_url2);
-        let pdf_txt1 = free_convert.get_json().await.unwrap();
-        let pdf_txt2 = free_convert2.get_json().await.unwrap();
+    //#[tokio::test]
+    //async fn test_geting_txt_from_pdf() {
+    //    let free_convert = setup_free_convert("https://www.kplc.co.ke/img/full/Interruptions%20-%2016.06.2022.pdf");
+    //    let free_convert2 = setup_free_convert("https://www.kplc.co.ke/img/full/Interruptions%20-%2023.06.2022.pdf");
 
-        println!("1:\n {}",pdf_txt1);
-        println!("2:\n {}",pdf_txt2);
-        assert!(pdf_txt1 != pdf_txt2);
+    //    let (pdf_txt1,pdf_txt2) = join!(free_convert.get_json(),free_convert2.get_json());
+
+    //    let pdf_txt1 = pdf_txt1.unwrap();
+    //    let pdf_txt2 = pdf_txt2.unwrap();
+
+    //    println!("1:\n {}",pdf_txt1);
+    //    println!("2:\n {}",pdf_txt2);
+    //    assert!(pdf_txt1 != pdf_txt2);
+    //}
+
+    #[test]
+    fn test_parsing_date(){
+        let to_be_parsed = 
+            String::from("DATE: Sunday 19.06.2022                    TIME: 9.00 A.M. ­ 5.00 P.M.");
+        let free_convert = setup_free_convert("https://www.kplc.co.ke/img/full/Interruptions%20-%2016.06.2022.pdf");
+        let date = free_convert.parse_date(&to_be_parsed).unwrap();
+        assert!(date.day == String::from("Sunday"));
+        assert!(date.day_date == 19);
+        assert!(date.month_date == 6);
+        assert!(date.year == 2022);
+        assert!(date.interval.from == String::from("9.00 A.M"));
+        assert!(date.interval.to == String::from("5.00 P.M"));
     }
 }
