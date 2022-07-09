@@ -78,7 +78,6 @@ impl FreeConvertAPI{
         );
         let capture = DATE_REGEX
             .find_iter(date_line).map(|f| f.as_str()).collect::<Vec<&str>>();
-        println!("VALS: {:#?}",capture);
         let mut from = capture[5].to_string();
         from.push_str(" ");
         from.push_str(&capture[6]);
@@ -180,6 +179,8 @@ impl API for FreeConvertAPI{
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::io::Write;
     use dotenv::dotenv;
     use tokio::join;
 
@@ -216,5 +217,23 @@ mod tests {
         assert!(date.year == 2022);
         assert!(date.interval.from == String::from("9.00 A.M"));
         assert!(date.interval.to == String::from("5.00 P.M"));
+    }
+
+    /// Used to find when we are at the end of a page, and beginning a new one.
+    /// test file @ ../test_files/Temp1 contains a text translation of
+    /// ../test_files/23.06.2022.pdf from freeconvert.com
+    /// which only has a total of two pages.
+    #[test]
+    fn test_getting_end_of_page(){
+        let lines = std::fs::read_to_string("./test_files/23.06.2022.txt").unwrap();
+        let vec_lines: Vec<&str> = lines.split("\n").collect();
+        assert!(vec_lines.len() > 0);
+        assert!(vec_lines.iter().filter(|line|{
+            if line.contains("") {
+                true
+            }else{
+                false
+            }
+        }).count() == 2);
     }
 }
