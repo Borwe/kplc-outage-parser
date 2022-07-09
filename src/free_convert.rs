@@ -185,7 +185,7 @@ mod tests {
 
     fn setup_free_convert(url: &str)-> FreeConvertAPI{
         dotenv().ok();
-        let key = std::env::var("TROLL_KEY").unwrap();
+        let key = std::env::var("FREECONV_KEY").unwrap();
         FreeConvertAPI::new(key, String::from(url))
     }
 
