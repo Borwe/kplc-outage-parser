@@ -6,6 +6,16 @@ use reqwest::{Client,header::HeaderMap, header::HeaderValue, Method};
 use serde::{Serialize,Deserialize};
 use async_trait::async_trait;
 use regex::Regex;
+use std::collections::HashMap;
+
+/// represent a single line on a page
+type Line = String;
+
+/// Represent a group of lines that are a page
+type Page = HashMap<String,Vec<Line>>;
+
+/// Represent a grou of pages
+type Book = Vec<Page>;
 
 const FREE_CONVERT_URL: &str = "https://api.freeconvert.com/v1/process";
 
@@ -63,6 +73,83 @@ impl FreeConvertAPI{
 
     pub fn set_pdf_url(&mut self, pdf_url: String){
         self.pdf_url = pdf_url;
+    }
+
+    /// Used to get pages storing each line
+    fn get_pages(&self ,data: &str)-> Book{
+        let mut pages = Book::new();
+
+        // a is left side of page
+        let mut page_side_a: Vec<Line> = Vec::new();
+        // b is right side of page
+        let mut page_side_b: Vec<Line> = Vec::new();
+
+
+        let is_second_page_str = "Interruption of";
+        let mut middle_page=0;
+
+        data.split("\n").collect::<Vec<&str>>()
+            .iter().for_each(|line|{
+            if line.contains("") {
+                // meaning we are now in a new page
+                let mut page = Page::new();
+                page.insert(String::from("a"),page_side_a.clone());
+                page.insert(String::from("b"),page_side_b.clone());
+                pages.push(page);
+                // reset to mark begining of new page
+                middle_page=0;
+            }
+
+            
+            if middle_page == 0{
+                // means we are in top of a brand new page,
+                // so get center split
+                // of the columns
+                if line.contains(is_second_page_str) {
+                    // meaning it isn't the first page
+                    let index = is_second_page_str.len();
+                    // mark the middle, but excluding the pre index section
+                    let mut  middle_after_index= 0;
+
+                    line[index..].chars().for_each(|c|{
+                        if c.is_whitespace(){
+                            middle_after_index+=1;
+                        }
+                    });
+                    println!("index: {}",index);
+                    println!("middle_after_index: {}",middle_after_index);
+                    middle_page = index+middle_after_index;
+
+                    middle_page-=2;// update due to offset
+                    let part_b = line[middle_page..].to_string();
+
+                    println!("POS: {}",middle_page);
+                    println!("PARTB: {}",part_b);
+                    
+                    page_side_b.push(part_b);
+                    page_side_a.push(String::from(is_second_page_str));
+                }else if line.len()>1 {
+                    // meaning this is the first page
+                    // which has an empty side a
+                    line.chars().for_each(|c|{
+                        if c.is_whitespace(){
+                            middle_page+=1;
+                        }
+                    });
+                    middle_page-=2;//update due to offset
+                    let part_b = line[middle_page..].to_string();
+
+                    println!("POS: {}",middle_page);
+                    println!("PARTB: {}",part_b);
+                    
+                    page_side_b.push(part_b);
+                    page_side_a.push(String::from(is_second_page_str));
+                }
+            }
+        });
+
+
+        pages
     }
 
     /// Can only parse Date object from String with the format:
@@ -226,14 +313,8 @@ mod tests {
     #[test]
     fn test_getting_end_of_page(){
         let lines = std::fs::read_to_string("./test_files/23.06.2022.txt").unwrap();
-        let vec_lines: Vec<&str> = lines.split("\n").collect();
-        assert!(vec_lines.len() > 0);
-        assert!(vec_lines.iter().filter(|line|{
-            if line.contains("") {
-                true
-            }else{
-                false
-            }
-        }).count() == 2);
+        let free_convert = setup_free_convert("https://www.kplc.co.ke/img/full/Interruptions%20-%2016.06.2022.pdf");
+        let book = free_convert.get_pages(&lines);
+        assert!(book.len() == 2);
     }
 }
