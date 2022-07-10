@@ -96,6 +96,8 @@ impl FreeConvertAPI{
                 page.insert(String::from("a"),page_side_a.clone());
                 page.insert(String::from("b"),page_side_b.clone());
                 pages.push(page);
+                page_side_a.clear();
+                page_side_b.clear();
                 // reset to mark begining of new page
                 middle_page=0;
             }
@@ -116,15 +118,15 @@ impl FreeConvertAPI{
                             middle_after_index+=1;
                         }
                     });
-                    println!("index: {}",index);
-                    println!("middle_after_index: {}",middle_after_index);
+                    //println!("index: {}",index);
+                    //println!("middle_after_index: {}",middle_after_index);
                     middle_page = index+middle_after_index;
 
-                    middle_page-=2;// update due to offset
+                    middle_page-=3;// update due to offset
                     let part_b = line[middle_page..].to_string();
 
-                    println!("POS: {}",middle_page);
-                    println!("PARTB: {}",part_b);
+                    //println!("POS: {}",middle_page);
+                    //println!("PARTB: {}",part_b);
                     
                     page_side_b.push(part_b);
                     page_side_a.push(String::from(is_second_page_str));
@@ -139,11 +141,22 @@ impl FreeConvertAPI{
                     middle_page-=2;//update due to offset
                     let part_b = line[middle_page..].to_string();
 
-                    println!("POS: {}",middle_page);
-                    println!("PARTB: {}",part_b);
+                    //println!("POS: {}",middle_page);
+                    //println!("PARTB: {}",part_b);
                     
                     page_side_b.push(part_b);
-                    page_side_a.push(String::from(is_second_page_str));
+                    page_side_a.push(String::default());
+                }
+            }else if line.is_empty()==false {
+                // meaning we aren't at the top of the pages
+                // but already know where the split at the middle 
+                // occurs
+                if line.len()> middle_page {
+                    page_side_a.push(line[..middle_page].to_string());
+                    page_side_b.push(line[middle_page..].to_string());
+                }else{
+                    page_side_a.push(line.clone().to_string());
+                    page_side_b.push(String::default());
                 }
             }
         });
@@ -266,8 +279,6 @@ impl API for FreeConvertAPI{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::io::Write;
     use dotenv::dotenv;
     use tokio::join;
 
@@ -312,9 +323,31 @@ mod tests {
     /// which only has a total of two pages.
     #[test]
     fn test_getting_end_of_page(){
-        let lines = std::fs::read_to_string("./test_files/23.06.2022.txt").unwrap();
+        let lines = std::fs::read_to_string("./test_files/23.06.2022.txt")
+            .unwrap();
         let free_convert = setup_free_convert("https://www.kplc.co.ke/img/full/Interruptions%20-%2016.06.2022.pdf");
         let book = free_convert.get_pages(&lines);
         assert!(book.len() == 2);
+        assert!(book.get(0).unwrap().get("a").unwrap().len()>4);
+        
+        print(&book);
+    }
+
+    /// just for printing the book data, user can parse to
+    /// see if code aligns
+    fn print(book:& Book){
+        book.iter().for_each(|page|{
+            let a = page.get("a").unwrap();
+            let b = page.get("b").unwrap();
+
+            a.iter().for_each(|line|{
+                println!("{}",line);
+            });
+            b.iter().for_each(|line|{
+                println!("{}",line);
+            });
+
+            println!("\n\n");
+        });
     }
 }
