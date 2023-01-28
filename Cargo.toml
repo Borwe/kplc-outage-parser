@@ -17,6 +17,7 @@ async-trait = "0.1.56"
 lazy_static = "1.4.0"
 regex = "1.5"
 anyhow = "1.0.68"
+uuid = { version = "1.2.2", features = ["v4"]}
 
 [dev-dependencies]
 dotenv = "0.15.0"
