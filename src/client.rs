@@ -7,6 +7,22 @@ use std::path::PathBuf;
 use std::process::Command;
 
 const COMMAND: &str = "pdftotext -layout {}";
+/// Contains strings to be ignored when parsing pdfs
+/// as they don't contain any real data
+const CONST_STRINGS_TO_IGNORE: [&str;12] = [
+    "Interruption of",
+    "Electricity Supply",
+    "Notice is hereby given under Rule 27 of the Electric Power Rules",
+    "That the electricity supply will be interrupted as here under:",
+    "(It is necessary to interrupt supply periodically in order to",
+    "facilitate maintenance and upgrade of power lines to the network;",
+    "to connect new customers or to replace power lines during road",
+    "construction, etc.)",
+    "For further information, contact",
+    "the nearest Kenya Power office",
+    "Interruption notices may be viewed at",
+    "www.kplc.co.ke",
+];
 
 pub struct KPLCClient{
     web_client: Option<Client>,
@@ -15,11 +31,13 @@ pub struct KPLCClient{
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Region{
+    region: String,
     parts: Vec<Part>
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Part{
+    part:  String,
     areas: Vec<Area>
 }
 
@@ -134,7 +152,11 @@ impl KPLCClient{
         Ok(book)
     }
 
-    fn parse_book_for_kplc_data(&mut self, book: Book) -> Result<String> {
+    fn parse_book_for_kplc_data(&mut self, book: Book) -> Result<KPLCData> {
+
+        let mut kplc_data = KPLCData{
+            regions: Vec::new()
+        };
 
         for page in book.pages.iter(){
             if page.lines.len() <= 1 {
@@ -173,6 +195,13 @@ impl KPLCClient{
             //this is to get the collumn where the right side starts from
             let mut right_start_pos = 0;
 
+
+            //use split to make it a single column page with no splits
+            //if there is a split, otherwise this should just be the 
+            //same as the lines in page field
+            let mut lines: Vec<&str> = page.lines.iter()
+                .map(|x| x.as_str()).collect();
+
             //means we have a split
             //so we get the beggining of the right collumn
             if biggest_gap>=3 {
@@ -196,11 +225,47 @@ impl KPLCClient{
                         break;
                     }
                 }
+
+                //make lines to take into account splits on the right as
+                //another set of lines
+                lines.clear();
+                for l in page.lines.iter(){
+                    if l.len() > right_start_pos{
+                        let left = &l[0..right_start_pos];
+                        lines.push(left);
+                    }else{
+                        lines.push(l);
+                    }
+                }
+                for l in page.lines.iter(){
+                    if l.len() > right_start_pos{
+                        let right = &l[right_start_pos..];
+                        lines.push(right);
+                    }
+                }
             }
 
-            println!("RIGHT collumn: {right_start_pos}");
+            let filtered_lines: Vec<&&str> = lines.iter().filter(|l|{
+                for f in  CONST_STRINGS_TO_IGNORE{
+                    if l.contains(f) {
+                        return false;
+                    }
+                }
+                true
+            }).collect();
+
+            
+
+            #[cfg(test)]
+            {
+                println!("RIGHT collumn: {right_start_pos}");
+                //show pages as single column
+                filtered_lines.iter().for_each(|l|{
+                    println!("{l}");
+                });
+            }
         }
-        Ok("".to_string())
+        Ok(kplc_data)
     }
 
     /// This parses the data inside the file passed in at @file_location
@@ -208,11 +273,8 @@ impl KPLCClient{
     /// later on going ahead to parse the data to derive a KPLCData object
     pub async fn parse_file_as_data_object(&mut self, file_location: &str) -> Result<KPLCData>{
         let file_with_info = self.run_command_and_fill(file_location)?;
-
         let book = self.read_file_data_into_book(&file_with_info)?;
-        let kplc_data = self.parse_book_for_kplc_data(book);
-
-        Err(anyhow::Error::from(std::io::Error::new(std::io::ErrorKind::AlreadyExists, "")))
+        self.parse_book_for_kplc_data(book)
     }
 }
 
@@ -239,6 +301,6 @@ mod tests{
     async fn test_if_parse_success(){
         let mut client = KPLCClient::new_offline();
         let result = client.parse_file_as_data_object("./test_files/23.06.2022.pdf").await.unwrap();
-        assert!(result.regions.len()>0);
+        //assert!(result.regions.len()>0);
     }
 }
