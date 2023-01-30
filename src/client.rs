@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{prelude::*, BufReader};
 use std::path::PathBuf;
 use std::process::Command;
+use regex::Regex;
 
 const COMMAND: &str = "pdftotext -layout {}";
 /// Contains strings to be ignored when parsing pdfs
@@ -27,6 +28,9 @@ const CONST_STRINGS_TO_IGNORE: [&str;12] = [
 //hold strings
 const REGION: &str = "REGION";
 const PARTS_OF: &str = "PARTS OF ";
+const AREA: &str = "AREA: ";
+const DATE: &str = "DATE: ";
+const TIME: &str = "TIME: ";
 
 pub struct KPLCClient{
     web_client: Option<Client>,
@@ -71,6 +75,7 @@ pub struct Time{
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Area{
+    area: String,
     places: Vec<String>,
     date: Date,
     time: Time
@@ -100,6 +105,10 @@ impl KPLCData {
             part,
             areas: Vec::new()
         });
+    }
+
+    pub fn get_last_part(&mut self) -> &Part {
+        self.regions.last().unwrap().parts.last().unwrap()
     }
 }
 
@@ -180,6 +189,7 @@ impl KPLCClient{
 
     fn parse_book_for_kplc_data(&mut self, book: Book) -> Result<KPLCData> {
 
+        let regex = Regex::new("(\\W+)").unwrap();
         let mut kplc_data = KPLCData::new();
         for page in book.pages.iter(){
             if page.lines.len() <= 1 {
@@ -284,12 +294,12 @@ impl KPLCClient{
 
             let mut l_itr = filtered_lines.iter();
             loop {
-                let l_option = l_itr.next();
+                let mut l_option = l_itr.next();
                 if l_option.is_none() {
                     //if there is no more items, exit
                     break;
                 }
-                let l = l_option.unwrap();
+                let mut l = l_option.unwrap();
 
                 //check for REGION key word, means we are now starting
                 //a new region and then continue to new line
@@ -301,19 +311,59 @@ impl KPLCClient{
                 
                 //check for PARTS keyword, then add part to current top
                 //region and continue to next line.
-                if l.contains(PARTS_OF) {
+                if l.contains(PARTS_OF) && !l.contains(AREA) {
                     let part = l.replace(PARTS_OF,"");
                     kplc_data.insert_part_to_prev_region(part);
                 }
 
+                // go to the next line here
+                // since after every part is the area section
+                l_option = l_itr.next();
+                if l_option.is_none(){
+                    break;
+                }
+                l = l_option.unwrap();
+
                 //check for AREA keyword, means the next lines are all for
                 //area information
+                if l.contains(AREA) {
+                    let area_name = l.replace(AREA, "").trim().to_string();
+
+                    l = l_itr.next().unwrap();
+                    let date_time_line = l.replace(DATE,"");
+                    //remove the spaces
+                    let date_time_split: Vec<String> = regex
+                        .split(&date_time_line).map(|x| x.to_string()).collect();
+
+                    let day: u32 = date_time_split[1].parse().unwrap();
+                    let month: u32 = date_time_split[2].parse().unwrap();
+                    let year: u32 = date_time_split[3].parse().unwrap();
+                    let start_time: String = date_time_split[5].clone()
+                        +"."+&date_time_split[6]
+                        +&date_time_split[7]+&date_time_split[8];
+                    let end_time:  String = date_time_split[9].clone()
+                        +"."+&date_time_split[10]
+                        +&date_time_split[11]+&date_time_split[12];
+
+                    let area = Area{
+                        area: area_name,
+                        places: Vec::new(),
+                        date: Date{
+                            day, month, year
+                        },
+                        time: Time{
+                            start: start_time,
+                            end: end_time
+                        }
+                    };
+                    println!("AREA: {:?}", area);
+                }
             }
 
             #[cfg(test)]
             {
                 println!("RIGHT collumn: {right_start_pos}");
-                //show pages as single column
+                // show pages as single column
                 //filtered_lines.iter().for_each(|l|{
                 //    println!("{l}");
                 //});
