@@ -24,6 +24,10 @@ const CONST_STRINGS_TO_IGNORE: [&str;12] = [
     "www.kplc.co.ke",
 ];
 
+//hold strings
+const REGION: &str = "REGION";
+const PARTS_OF: &str = "PARTS OF ";
+
 pub struct KPLCClient{
     web_client: Option<Client>,
     file_data: Option<Vec<String>>
@@ -75,6 +79,28 @@ pub struct Area{
 #[derive(Deserialize, Serialize, Debug)]
 pub struct KPLCData{
     regions: Vec<Region>
+}
+
+impl KPLCData {
+    pub fn new()-> Self{
+        Self{
+            regions: Vec::new()
+        }
+    }
+
+    pub fn insert_region(&mut self,region: String) {
+        self.regions.push(Region{
+            region,
+            parts: Vec::new()
+        });
+    }
+
+    pub fn insert_part_to_prev_region(&mut self, part: String){
+        self.regions.last_mut().unwrap().parts.push(Part{
+            part,
+            areas: Vec::new()
+        });
+    }
 }
 
 impl Page {
@@ -154,10 +180,7 @@ impl KPLCClient{
 
     fn parse_book_for_kplc_data(&mut self, book: Book) -> Result<KPLCData> {
 
-        let mut kplc_data = KPLCData{
-            regions: Vec::new()
-        };
-
+        let mut kplc_data = KPLCData::new();
         for page in book.pages.iter(){
             if page.lines.len() <= 1 {
                 //for last page which normally contains a blank line
@@ -246,6 +269,11 @@ impl KPLCClient{
             }
 
             let filtered_lines: Vec<&&str> = lines.iter().filter(|l|{
+                //skip lines with nothing in them
+                if l.trim().is_empty() {
+                    return false;
+                }
+                //remove bloat lines
                 for f in  CONST_STRINGS_TO_IGNORE{
                     if l.contains(f) {
                         return false;
@@ -254,15 +282,41 @@ impl KPLCClient{
                 true
             }).collect();
 
-            
+            let mut l_itr = filtered_lines.iter();
+            loop {
+                let l_option = l_itr.next();
+                if l_option.is_none() {
+                    //if there is no more items, exit
+                    break;
+                }
+                let l = l_option.unwrap();
+
+                //check for REGION key word, means we are now starting
+                //a new region and then continue to new line
+                if l.contains(REGION) {
+                    let region = l.replace(REGION,"");
+                    kplc_data.insert_region(region);
+                    continue;
+                }
+                
+                //check for PARTS keyword, then add part to current top
+                //region and continue to next line.
+                if l.contains(PARTS_OF) {
+                    let part = l.replace(PARTS_OF,"");
+                    kplc_data.insert_part_to_prev_region(part);
+                }
+
+                //check for AREA keyword, means the next lines are all for
+                //area information
+            }
 
             #[cfg(test)]
             {
                 println!("RIGHT collumn: {right_start_pos}");
                 //show pages as single column
-                filtered_lines.iter().for_each(|l|{
-                    println!("{l}");
-                });
+                //filtered_lines.iter().for_each(|l|{
+                //    println!("{l}");
+                //});
             }
         }
         Ok(kplc_data)
