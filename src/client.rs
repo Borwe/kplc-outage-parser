@@ -316,14 +316,6 @@ impl KPLCClient{
                     kplc_data.insert_part_to_prev_region(part);
                 }
 
-                // go to the next line here
-                // since after every part is the area section
-                l_option = l_itr.next();
-                if l_option.is_none(){
-                    break;
-                }
-                l = l_option.unwrap();
-
                 //check for AREA keyword, means the next lines are all for
                 //area information
                 if l.contains(AREA) {
@@ -373,6 +365,8 @@ impl KPLCClient{
                            if l.contains(AREA){
                                break;
                            }
+                       }else{
+                           break;
                        }
 
                        let l_option = l_itr.next();
@@ -382,10 +376,16 @@ impl KPLCClient{
                        }
                        let l = l_option.unwrap();//get the lines
                        locations_in_area.push_str(l.trim());
-                       locations_in_area.push_str(" ");
                     }
+
+                    //fill the area
+                    locations_in_area.split(",").for_each(|l|{
+
+                        let l = l.trim().to_string();
+                        area.places.push(l);
+                    });
                     println!();
-                    println!("AREA: {}", locations_in_area);
+                    println!("AREA: {:?}", area);
                     println!();
                 }
             }
