@@ -292,7 +292,7 @@ impl KPLCClient{
                 true
             }).collect();
 
-            let mut l_itr = filtered_lines.iter();
+            let mut l_itr = filtered_lines.iter().peekable();
             loop {
                 let mut l_option = l_itr.next();
                 if l_option.is_none() {
@@ -345,7 +345,7 @@ impl KPLCClient{
                         +"."+&date_time_split[10]
                         +&date_time_split[11]+&date_time_split[12];
 
-                    let area = Area{
+                    let mut area = Area{
                         area: area_name,
                         places: Vec::new(),
                         date: Date{
@@ -356,7 +356,37 @@ impl KPLCClient{
                             end: end_time
                         }
                     };
-                    println!("AREA: {:?}", area);
+
+                    let mut locations_in_area = String::new();
+
+                    loop {
+                       let l_option = l_itr.peek();
+                       if l_option.is_some(){
+                           l = l_option.unwrap();
+                           if l.contains(REGION) {
+                               //we have reached end of locations in area
+                               break;
+                           }
+                           if l.contains(PARTS_OF) && !l.contains(AREA){
+                               break;
+                           }
+                           if l.contains(AREA){
+                               break;
+                           }
+                       }
+
+                       let l_option = l_itr.next();
+                       if l_option.is_none() {
+                           //means we have reached the end
+                           break;
+                       }
+                       let l = l_option.unwrap();//get the lines
+                       locations_in_area.push_str(l.trim());
+                       locations_in_area.push_str(" ");
+                    }
+                    println!();
+                    println!("AREA: {}", locations_in_area);
+                    println!();
                 }
             }
 
