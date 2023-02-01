@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::{prelude::*, BufReader};
 use std::path::PathBuf;
 use std::process::Command;
+use lazy_static::lazy_static;
 use regex::Regex;
 
 /// Contains strings to be ignored when parsing pdfs
@@ -183,7 +184,9 @@ impl KPLCClient{
 
     fn parse_book_for_kplc_data(&mut self, book: Book) -> Result<KPLCData> {
 
-        let regex = Regex::new("(\\W+)").unwrap();
+        lazy_static! {
+            static ref REGEX: Regex = Regex::new("(\\W+)").unwrap();
+        }
         let mut kplc_data = KPLCData::new();
         for page in book.pages.iter(){
             if page.lines.len() <= 1 {
@@ -318,7 +321,7 @@ impl KPLCClient{
                     l = l_itr.next().unwrap();
                     let date_time_line = l.replace(DATE,"");
                     //remove the spaces
-                    let date_time_split: Vec<String> = regex
+                    let date_time_split: Vec<String> = REGEX
                         .split(date_time_line.trim()).map(|x| x.to_string()).collect();
 
                     let day: u32 = date_time_split[1].parse().unwrap();
