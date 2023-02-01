@@ -7,7 +7,6 @@ use std::path::PathBuf;
 use std::process::Command;
 use regex::Regex;
 
-const COMMAND: &str = "pdftotext -layout {}";
 /// Contains strings to be ignored when parsing pdfs
 /// as they don't contain any real data
 const CONST_STRINGS_TO_IGNORE: [&str;12] = [
@@ -30,7 +29,6 @@ const REGION: &str = "REGION";
 const PARTS_OF: &str = "PARTS OF ";
 const AREA: &str = "AREA: ";
 const DATE: &str = "DATE: ";
-const TIME: &str = "TIME: ";
 
 pub struct KPLCClient{
     web_client: Option<Client>,
@@ -109,6 +107,11 @@ impl KPLCData {
 
     pub fn get_last_part(&mut self) -> &Part {
         self.regions.last().unwrap().parts.last().unwrap()
+    }
+
+    pub fn insert_area_to_last_part(&mut self, area: Area){
+        self.regions.last_mut().unwrap().parts.last_mut().unwrap()
+            .areas.push(area);
     }
 }
 
@@ -294,7 +297,7 @@ impl KPLCClient{
 
             let mut l_itr = filtered_lines.iter().peekable();
             loop {
-                let mut l_option = l_itr.next();
+                let l_option = l_itr.next();
                 if l_option.is_none() {
                     //if there is no more items, exit
                     break;
@@ -350,7 +353,6 @@ impl KPLCClient{
                     };
 
                     let mut locations_in_area = String::new();
-
                     loop {
                        let l_option = l_itr.peek();
                        if l_option.is_some(){
@@ -384,9 +386,8 @@ impl KPLCClient{
                         let l = l.trim().to_string();
                         area.places.push(l);
                     });
-                    println!();
-                    println!("AREA: {:?}", area);
-                    println!();
+
+                    kplc_data.insert_area_to_last_part(area);
                 }
             }
 
@@ -435,6 +436,20 @@ mod tests{
     async fn test_if_parse_success(){
         let mut client = KPLCClient::new_offline();
         let result = client.parse_file_as_data_object("./test_files/23.06.2022.pdf").await.unwrap();
-        //assert!(result.regions.len()>0);
+        // this pdf only has 7 regions
+        assert!(result.regions.len()==7);
+
+        // to get all the parts in the pdf, they should be 18
+        let mut sum_of_parts = 0;
+        // to get all areas in the pdfs, they should be 40
+        let mut sum_of_areas = 0;
+        for r in result.regions.iter() {
+            sum_of_parts+=r.parts.len();
+            for p in r.parts.iter(){
+                sum_of_areas+=p.areas.len();
+            }
+        }
+        assert!(sum_of_parts==18);
+        assert!(sum_of_areas==40);
     }
 }
