@@ -1,6 +1,6 @@
 [package]
 name = "kplc-outage-parser"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Brian Orwe <brian.orwe@gmail.com>"]
 description  = "A library to give output of latest data from kplc outages pdf @ https://kplc.co.ke/category/view/50/planned-power-interruptions"

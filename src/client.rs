@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use tokio::fs::File;
+use tokio::io::{AsyncBufReadExt,AsyncWriteExt, BufReader};
 use std::path::PathBuf;
 use std::process::Command;
 use lazy_static::lazy_static;
@@ -161,23 +161,35 @@ impl KPLCClient{
         Ok(tmp_file)
     }
 
-    fn read_file_data_into_book(&mut self, file_path: &PathBuf) 
+    async fn read_file_data_into_book(&mut self, file_path: &PathBuf) 
         -> Result<Book>{
         let begin_if_new_pg = "";
         let mut book = Book{ pages:Vec::new()};
-        let file = File::open(file_path)?;
+        let file = File::open(file_path).await?;
         let buff_reader = BufReader::new(file);
+
+
 
         let mut page = Page::new();
         //read lines, separating pages into books
-        for l in  buff_reader.lines(){
-            let line = l.unwrap();
-            if line.contains(begin_if_new_pg) {
-                book.pages.push(page);
-                page = Page::new();
+        let mut lines = buff_reader.lines();
+        loop {
+            if let Ok(l) = lines.next_line().await{
+                if let Some(line) = l {
+                    if line.contains(begin_if_new_pg) {
+                        book.pages.push(page);
+                        page = Page::new();
+                    }
+                    page.insert_line(line);
+                }else{
+                    break;
+                }
+            }else{
             }
-            page.insert_line(line);
         }
+
+        println!("HMMMMMMMM");
+
         book.pages.push(page);
         Ok(book)
     }
@@ -188,6 +200,7 @@ impl KPLCClient{
             static ref REGEX: Regex = Regex::new("(\\W+)").unwrap();
         }
         let mut kplc_data = KPLCData::new();
+        println!("Do we get here??");
         for page in book.pages.iter(){
             if page.lines.len() <= 1 {
                 //for last page which normally contains a blank line
@@ -402,10 +415,13 @@ impl KPLCClient{
     /// later on going ahead to parse the data to derive a KPLCData object
     pub async fn parse_file_as_data_object(&mut self, file_location: &str) -> Result<KPLCData>{
         let file_with_info = self.run_command_and_fill(file_location)?;
-        let book = self.read_file_data_into_book(&file_with_info)?;
+        let book = self.read_file_data_into_book(&file_with_info).await?;
         self.parse_book_for_kplc_data(book)
     }
 
+    /// This parses the data inside the downloaded from link passed
+    /// in at @web then stores it into the file_data field as a String,
+    /// later on going ahead to parse the data to derive a KPLCData object
     pub async fn parse_from_web(&mut self, web: &str)-> Result<KPLCData>{
         let resp = reqwest::get(web).await?.bytes().await?;
 
@@ -419,9 +435,8 @@ impl KPLCClient{
         //show where pdf file is, only for debugging
         dbg!("FILE: {}",tmp_file.to_str().unwrap());
 
-        let mut pdf = File::create(tmp_file.clone())?;
-        pdf.write_all(&resp)?;
-
+        let mut pdf = File::create(tmp_file.clone()).await?;
+        pdf.write_all(&resp).await?;
 
         self.parse_file_as_data_object(tmp_file.to_str().unwrap()).await
     }
@@ -431,12 +446,12 @@ impl KPLCClient{
 mod tests{
     use super::*;
 
-    #[test]
-    fn test_reading_books(){
+    #[tokio::test]
+    async fn test_reading_books(){
         let mut kplc = KPLCClient::new();
         let path = kplc
             .run_command_and_fill("./test_files/23.06.2022.pdf").unwrap();
-        let book = kplc.read_file_data_into_book(&path).unwrap();
+        let book = kplc.read_file_data_into_book(&path).await.unwrap();
         dbg!("BOOK_PAGES: {}",book.pages.len());
         assert!(book.pages.len()==3);
         //book.pages.iter().for_each(|p|{
