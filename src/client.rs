@@ -1,4 +1,3 @@
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
 use std::fs::File;
@@ -30,10 +29,7 @@ const PARTS_OF: &str = "PARTS OF ";
 const AREA: &str = "AREA: ";
 const DATE: &str = "DATE: ";
 
-pub struct KPLCClient{
-    web_client: Option<Client>,
-    file_data: Option<Vec<String>>
-}
+pub struct KPLCClient{}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Region{
@@ -110,8 +106,18 @@ impl KPLCData {
     }
 
     pub fn insert_area_to_last_part(&mut self, area: Area){
-        self.regions.last_mut().unwrap().parts.last_mut().unwrap()
-            .areas.push(area);
+        let region = self.regions.last_mut().unwrap();
+        let part = match region.parts.last_mut(){
+            Some(part) => part,
+            None => {
+                region.parts.push(Part {
+                    part: String::new(),
+                    areas: Vec::new()
+                });
+                region.parts.last_mut().unwrap()
+            }
+        };
+        part.areas.push(area);
     }
 }
 
@@ -129,23 +135,8 @@ impl Page {
 
 impl KPLCClient{
     /// Creates a KPLCClient:
-    /// <b>NOTE:</b> The the client can only handle storing one
-    /// file data at a time, hence if you try read data from web or offline
-    /// multiple times it will only hold data from the latest read.
     pub fn new()->Self{
-        Self{
-            web_client: Some(Client::new()),
-            file_data: None
-        }
-    }
-
-    /// For use with testing only, because we use files from local system
-    #[cfg(test)]
-    pub fn new_offline()-> Self{
-        Self{
-            web_client: None,
-            file_data: None
-        }
+        Self{ }
     }
 
     /// Run cmd to run the file
@@ -328,7 +319,7 @@ impl KPLCClient{
                     let date_time_line = l.replace(DATE,"");
                     //remove the spaces
                     let date_time_split: Vec<String> = regex
-                        .split(&date_time_line).map(|x| x.to_string()).collect();
+                        .split(date_time_line.trim()).map(|x| x.to_string()).collect();
 
                     let day: u32 = date_time_split[1].parse().unwrap();
                     let month: u32 = date_time_split[2].parse().unwrap();
@@ -411,6 +402,26 @@ impl KPLCClient{
         let book = self.read_file_data_into_book(&file_with_info)?;
         self.parse_book_for_kplc_data(book)
     }
+
+    pub async fn parse_from_web(&mut self, web: &str)-> Result<KPLCData>{
+        let resp = reqwest::get(web).await?.bytes().await?;
+
+        // get file to save pdf resp data to
+        let mut tmp_file = std::env::temp_dir();
+        tmp_file.push("kplc_data");
+        std::fs::create_dir_all(tmp_file.clone())?;
+        // get random num
+        let ran = uuid::Uuid::new_v4();
+        tmp_file.push(format!("tmp-{}.pdf",ran.as_u128()));
+        //show where pdf file is, only for debugging
+        dbg!("FILE: {}",tmp_file.to_str().unwrap());
+
+        let mut pdf = File::create(tmp_file.clone())?;
+        pdf.write_all(&resp)?;
+
+
+        self.parse_file_as_data_object(tmp_file.to_str().unwrap()).await
+    }
 }
 
 #[cfg(test)]
@@ -419,7 +430,7 @@ mod tests{
 
     #[test]
     fn test_reading_books(){
-        let mut kplc = KPLCClient::new_offline();
+        let mut kplc = KPLCClient::new();
         let path = kplc
             .run_command_and_fill("./test_files/23.06.2022.pdf").unwrap();
         let book = kplc.read_file_data_into_book(&path).unwrap();
@@ -434,7 +445,7 @@ mod tests{
 
     #[tokio::test]
     async fn test_if_parse_success(){
-        let mut client = KPLCClient::new_offline();
+        let mut client = KPLCClient::new();
         let result = client.parse_file_as_data_object("./test_files/23.06.2022.pdf").await.unwrap();
         // this pdf only has 7 regions
         assert!(result.regions.len()==7);
