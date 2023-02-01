@@ -188,8 +188,6 @@ impl KPLCClient{
             }
         }
 
-        println!("HMMMMMMMM");
-
         book.pages.push(page);
         Ok(book)
     }
