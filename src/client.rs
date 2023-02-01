@@ -150,7 +150,9 @@ impl KPLCClient{
         tmp_file.push(format!("fs-{}.txt",ran.as_u128()));
 
         //show where file is
-        dbg!("FILE: {}",tmp_file.to_str().unwrap());
+        #[cfg(test)]{
+            dbg!("FILE: {}",tmp_file.to_str().unwrap());
+        }
         //show cmd
         let cmd = format!("pdftotext -layout {} {}",
             file_location, tmp_file.to_str().unwrap());
@@ -431,7 +433,9 @@ impl KPLCClient{
         let ran = uuid::Uuid::new_v4();
         tmp_file.push(format!("tmp-{}.pdf",ran.as_u128()));
         //show where pdf file is, only for debugging
-        dbg!("FILE: {}",tmp_file.to_str().unwrap());
+        #[cfg(test)]{
+            println!("FILE: {}",tmp_file.to_str().unwrap());
+        }
 
         let mut pdf = File::create(tmp_file.clone()).await?;
         pdf.write_all(&resp).await?;
@@ -450,7 +454,7 @@ mod tests{
         let path = kplc
             .run_command_and_fill("./test_files/23.06.2022.pdf").unwrap();
         let book = kplc.read_file_data_into_book(&path).await.unwrap();
-        dbg!("BOOK_PAGES: {}",book.pages.len());
+        println!("BOOK_PAGES: {}",book.pages.len());
         assert!(book.pages.len()==3);
         //book.pages.iter().for_each(|p|{
         //    p.lines.iter().for_each(|l|{
