@@ -34,14 +34,14 @@ pub struct KPLCClient{}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Region{
-    region: String,
-    parts: Vec<Part>
+    pub region: String,
+    pub parts: Vec<Part>
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Part{
-    part:  String,
-    areas: Vec<Area>
+    pub part:  String,
+    pub areas: Vec<Area>
 }
 
 /// Hold the lines in a page
@@ -70,15 +70,15 @@ pub struct Time{
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Area{
-    area: String,
-    places: Vec<String>,
-    date: Date,
-    time: Time
+    pub area: String,
+    pub places: Vec<String>,
+    pub date: Date,
+    pub time: Time
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct KPLCData{
-    regions: Vec<Region>
+    pub regions: Vec<Region>
 }
 
 impl KPLCData {
