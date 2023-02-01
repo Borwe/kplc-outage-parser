@@ -200,7 +200,6 @@ impl KPLCClient{
             static ref REGEX: Regex = Regex::new("(\\W+)").unwrap();
         }
         let mut kplc_data = KPLCData::new();
-        println!("Do we get here??");
         for page in book.pages.iter(){
             if page.lines.len() <= 1 {
                 //for last page which normally contains a blank line
