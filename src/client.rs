@@ -281,7 +281,7 @@ impl KPLCClient{
                 }
                 for l in page.lines.iter(){
                     if l.len() > right_start_pos{
-                        let right = &l[right_start_pos-1..];
+                        let right = &l[right_start_pos-2..];
                         lines.push(right);
                     }
                 }
@@ -336,19 +336,16 @@ impl KPLCClient{
                     let date_time_split: Vec<String> = REGEX
                         .split(date_time_line.trim()).map(|x| x.to_string()).collect();
 
-                    println!("AREA: {area_name}");
-                    println!("DAY: {:?}", date_time_split);
+                    println!("DATE: {date_time_line}");
                     let day: u32 = date_time_split[1].parse().unwrap();
                     let month: u32 = date_time_split[2].parse().unwrap();
                     let year: u32 = date_time_split[3].parse().unwrap();
                     let start_time: String = date_time_split[5].clone()
                         +"."+&date_time_split[6]
                         +&date_time_split[7]+&date_time_split[8];
-                    println!("START: {start_time}");
                     let end_time:  String = date_time_split[10].clone()
                         +"."+&date_time_split[11]
                         +"PM";
-                    println!("END: {end_time}");
 
                     let mut area = Area{
                         area: area_name,

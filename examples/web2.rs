@@ -6,5 +6,5 @@ async fn main(){
     println!("Parsing data from {link}");
     let mut client = KPLCClient::new();
     let kplcdata_obj = client.parse_from_web(link).await.unwrap();
-    println!("Data: {:?}",kplcdata_obj);
+    println!("{:?}",kplcdata_obj);
 }
