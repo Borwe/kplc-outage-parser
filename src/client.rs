@@ -197,7 +197,7 @@ impl KPLCClient{
     fn parse_book_for_kplc_data(&mut self, book: Book) -> Result<KPLCData> {
 
         lazy_static! {
-            static ref REGEX: Regex = Regex::new("(\\W+)").unwrap();
+            static ref REGEX: Regex = Regex::new("[(\\s+).^P]+").unwrap();
         }
         let mut kplc_data = KPLCData::new();
         for page in book.pages.iter(){
@@ -335,15 +335,20 @@ impl KPLCClient{
                     //remove the spaces
                     let date_time_split: Vec<String> = REGEX
                         .split(date_time_line.trim()).map(|x| x.to_string()).collect();
+
+                    println!("AREA: {area_name}");
+                    println!("DAY: {:?}", date_time_split);
                     let day: u32 = date_time_split[1].parse().unwrap();
                     let month: u32 = date_time_split[2].parse().unwrap();
                     let year: u32 = date_time_split[3].parse().unwrap();
                     let start_time: String = date_time_split[5].clone()
                         +"."+&date_time_split[6]
                         +&date_time_split[7]+&date_time_split[8];
-                    let end_time:  String = date_time_split[9].clone()
-                        +"."+&date_time_split[10]
-                        +&date_time_split[11]+&date_time_split[12];
+                    println!("START: {start_time}");
+                    let end_time:  String = date_time_split[10].clone()
+                        +"."+&date_time_split[11]
+                        +"PM";
+                    println!("END: {end_time}");
 
                     let mut area = Area{
                         area: area_name,
@@ -460,6 +465,7 @@ mod tests{
         //    })
         //})
     }
+
 
     #[tokio::test]
     async fn test_if_parse_success(){
