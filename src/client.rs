@@ -336,7 +336,6 @@ impl KPLCClient{
                     let date_time_split: Vec<String> = REGEX
                         .split(date_time_line.trim()).map(|x| x.to_string()).collect();
 
-                    println!("DATE: {date_time_line}");
                     let day: u32 = date_time_split[1].parse().unwrap();
                     let month: u32 = date_time_split[2].parse().unwrap();
                     let year: u32 = date_time_split[3].parse().unwrap();
